@@ -1,6 +1,13 @@
 var express = require('express')
 var bodyParser = require('body-parser')
 var app = express();
+var MongoClient = require('mongodb').MongoClient;
+var url = 'mongodb://localhost:27017/book-inventory';
+MongoClient.connect(url, function(err, db) {
+  console.log("Connected successfully to server");
+
+  db.close();
+});
 
 app.use(bodyParser.json())
 function logger (req, res, next) {
@@ -21,8 +28,16 @@ function errorHandler(err, req, res, next){
 };
 
 function postStock(req, res){
-    res.json({"isbn": req.body.isbn, "count": req.body.count});
-    //res.send("ISBN: "+req.body.isbn+"<br>Count: "+req.body.count);
+    MongoClient.connect(url, function(err, db) {
+        console.log("Connected successfully to server");
+        db.collection('books').updateOne({ isbn:req.body.isbn }, req.body, {upsert: true}, function(err, book){
+            db.collection('books').findOne({isbn: req.body.isbn}, function(err, book){
+                console.log("Book found")
+                res.json(book);
+                db.close();
+            })
+        });
+    });
 }
 
 app.get('/', logger, function (req, res) {
@@ -38,6 +53,4 @@ app.post('/stock', postStock);
 app.use(notFound);
 app.use(errorHandler);
 
-app.listen(3000, function () {
-  console.log("Example app listening on port " + 3000);
-});
+module.exports = app;
